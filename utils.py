@@ -3,23 +3,28 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 from PIL import Image
+import shutil 
 
 def create_output_folder(folder_name="output"):
     """
     Cria uma pasta de saída para armazenar os resultados.
-    Se a pasta já existir, limpa seu conteúdo.
+    Remove o diretório existente e todo o seu conteúdo antes de recriar as subpastas.
+
     Args:
         folder_name (str): Nome da pasta de saída.
     """
+    subfolders = ["imgs", "grids", "hists"]
+
+    # Remove o diretório existente e todo o seu conteúdo
     if os.path.exists(folder_name):
-        for file in os.listdir(folder_name):
-            file_path = os.path.join(folder_name, file)
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                os.rmdir(file_path)
-    else:
-        os.makedirs(folder_name)
+        shutil.rmtree(folder_name)  # Remove o diretório e todo o seu conteúdo
+
+    # Recria o diretório principal
+    os.makedirs(folder_name)
+
+    # Cria as subpastas
+    for subfolder in subfolders:
+        os.makedirs(os.path.join(folder_name, subfolder))
 
 def salvar_imagem_concatenada(imagens, diretorio, nome_arquivo, modo="L"):
     """
@@ -173,3 +178,45 @@ def salvar_grid_imagens(imagens_nomes, diretorio, nome_arquivo, modo="L"):
     caminho_completo = os.path.join(diretorio, nome_arquivo)
     img_pil.save(caminho_completo)
     print(f"Grid de imagens salvo: {caminho_completo}")
+
+def plotar_histogramas_lado_a_lado(imagens, titulos=None, salvar_em=None, modo="L", titulo_geral=None):
+    """
+    Plota histogramas lado a lado para uma lista de imagens.
+
+    Args:
+        imagens (list): Lista de arrays numpy representando as imagens.
+        titulos (list): Lista de títulos para os histogramas (opcional).
+        salvar_em (str): Caminho para salvar a imagem com os histogramas (opcional).
+        modo (str): Modo da imagem ("L" para grayscale ou "RGB" para colorido).
+        titulo_geral (str): Título geral para o conjunto de histogramas (opcional).
+    """
+    num_imagens = len(imagens)
+    titulos = titulos or [f"Imagem {i+1}" for i in range(num_imagens)]
+
+    # Configura o layout do grid
+    fig, axes = plt.subplots(1, num_imagens, figsize=(5 * num_imagens, 5))
+    if num_imagens == 1:
+        axes = [axes]  # Garante que axes seja iterável para uma única imagem
+
+    for ax, img, titulo in zip(axes, imagens, titulos):
+        if modo == "RGB" and len(img.shape) == 3:  # Para imagens RGB
+            colors = ['red', 'green', 'blue']
+            for i, color in enumerate(colors):
+                ax.hist(img[:, :, i].ravel(), bins=256, range=(0, 255), color=color, alpha=0.5, label=f'Canal {color}')
+            ax.legend()
+        else:  # Para imagens em escala de cinza
+            ax.hist(img.ravel(), bins=256, range=(0, 255), color='gray')
+        ax.set_title(titulo)
+        ax.set_xlabel("Intensidade")
+        ax.set_ylabel("Frequência")
+
+    if titulo_geral:
+        fig.suptitle(titulo_geral, fontsize=16)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Ajusta o layout para o título geral
+
+    if salvar_em:
+        plt.savefig(salvar_em)
+        print(f"Histogramas salvos em: {salvar_em}")
+    else:
+        plt.show()
